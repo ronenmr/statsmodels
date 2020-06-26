@@ -347,7 +347,7 @@ class RegressionModel(base.LikelihoodModel):
             n_singular = sum(singular_preds)
             n_preds = len(singular_preds)
             self.rank = n_preds - n_singular
-            softP = np.argsort(P)
+            sortP = np.argsort(P)
 
             if n_singular > 0:
                 rng = range(self.rank)
@@ -355,17 +355,17 @@ class RegressionModel(base.LikelihoodModel):
                 Rr = R[rng, :][:, rng]
                 effects = np.dot(Qq.T, self.wendog)
                 beta = linalg.solve_triangular(Rr, effects)
-                beta = np.concatenate((beta, np.repeat(0.0, n_singular)))[np.argsort(P)]
+                beta = np.concatenate((beta, np.repeat(0.0, n_singular)))[sortP]
                 self.effects = np.concatenate((effects, np.repeat(np.NaN, n_singular)))
                 normalized_cov_params = np.linalg.inv(np.dot(Rr.T, Rr))
 
                 normalized_cov_params = np.vstack((normalized_cov_params, np.zeros((n_singular, self.rank))))
                 normalized_cov_params = np.hstack((normalized_cov_params, np.zeros((n_preds, n_singular))))
-                self.normalized_cov_params = normalized_cov_params[softP,:][:, softP]
+                self.normalized_cov_params = normalized_cov_params[sortP,:][:, sortP]
             else:
                 self.effects = np.dot(Q.T, self.wendog)
-                beta = np.linalg.solve(R, self.effects)[np.argsort(P)]
-                self.normalized_cov_params = np.linalg.inv(np.dot(R.T, R))[softP,:][:,softP]
+                beta = linalg.solve_triangular(R, self.effects)[sortP]
+                self.normalized_cov_params = np.linalg.inv(np.dot(R.T, R))[sortP,:][:,sortP]
         else:
             raise ValueError('method has to be "pinv" or "qr"')
 

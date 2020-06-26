@@ -166,6 +166,7 @@ class TestOLS(CheckRegressionResults):
         cls.res2 = res2
 
         res_qr = OLS(data.endog, data.exog).fit(method="qr")
+        res_qr_pivot = OLS(data.endog, data.exog).fit(method="qr-pivot")
 
         model_qr = OLS(data.endog, data.exog)
         Q, R = np.linalg.qr(data.exog)
@@ -175,12 +176,20 @@ class TestOLS(CheckRegressionResults):
         res_qr2 = model_qr.fit(method="qr")
 
         cls.res_qr = res_qr
+        cls.res_qr_pivot = res_qr_pivot
         cls.res_qr_manual = res_qr2
 
     def test_eigenvalues(self):
         eigenval_perc_diff = (self.res_qr.eigenvals -
                               self.res_qr_manual.eigenvals)
         eigenval_perc_diff /= self.res_qr.eigenvals
+        zeros = np.zeros_like(eigenval_perc_diff)
+        assert_almost_equal(eigenval_perc_diff, zeros, DECIMAL_7)
+
+    def test_qr_pivot_eigenvalues(self):
+        eigenval_perc_diff = (self.res_qr_pivot.eigenvals -
+                              self.res_qr_manual.eigenvals)
+        eigenval_perc_diff /= self.res_qr_pivot.eigenvals
         zeros = np.zeros_like(eigenval_perc_diff)
         assert_almost_equal(eigenval_perc_diff, zeros, DECIMAL_7)
 
@@ -218,11 +227,20 @@ class TestOLS(CheckRegressionResults):
         assert_almost_equal(self.res1.params,
                             self.res_qr.params, 6)
 
+    def test_qr_params(self):
+        assert_almost_equal(self.res1.params,
+                            self.res_qr.params, 6)
+
     def test_qr_normalized_cov_params(self):
         # todo: need assert_close
         assert_almost_equal(np.ones_like(self.res1.normalized_cov_params),
                             self.res1.normalized_cov_params /
                             self.res_qr.normalized_cov_params, 5)
+
+    def test_qr_pivot_normalized_cov_params(self):
+        assert_almost_equal(np.ones_like(self.res1.normalized_cov_params),
+                            self.res1.normalized_cov_params /
+                            self.res_qr_pivot.normalized_cov_params, 5)
 
     def test_missing(self):
         data = longley.load(as_pandas=False)
@@ -246,6 +264,11 @@ class TestOLS(CheckRegressionResults):
     def test_qr_alternatives(self):
         assert_allclose(self.res_qr.params, self.res_qr_manual.params,
                         rtol=5e-12)
+
+    def test_qr_pivot_alternatives(self):
+        #test qr-pivot method
+        assert_allclose(self.res_qr_pivot.params, self.res_qr_manual.params,
+                        rtol=1e-11)
 
     def test_norm_resid(self):
         resid = self.res1.wresid
@@ -274,6 +297,7 @@ class TestRTO(CheckRegressionResults):
 
         res_qr = OLS(data.endog, data.exog).fit(method="qr")
         cls.res_qr = res_qr
+
 
 class TestFtest(object):
     """
@@ -1394,3 +1418,32 @@ def test_ols_constant(reset_randomstate):
         assert np.isnan(res.fvalue)
         assert np.isnan(res.f_pvalue)
     assert len(recording) == 0
+
+def test_ols_qr_pivot_with_multicollinearity():
+    # this test is based on startmodels linear regression example
+    # the qr-pivot model is expected to though one of the variables with multicollinearity
+    # the model that is built on the rest of the variables should be identical to a regression model
+    # on the variables that are left in the model.
+
+    np.random.seed(9876789)
+
+    nsample = 100
+    x = np.linspace(0, 10, 100)
+    # create data with multicollinearity
+    X = np.column_stack((x, x ** 2, x + x ** 2))
+    beta = np.array([1, 0.1, 10, 0])
+    e = np.random.normal(size=nsample)
+
+    X = add_constant(X)
+    y = np.dot(X, beta) + e
+
+    model = OLS(y, X)
+
+    results_pivot = model.fit(method="qr-pivot")
+
+    results_qr = OLS(y, X[:,[0,2,3]]).fit(method='qr')
+    assert_allclose(results_qr.params, results_pivot.params[[0,2,3]])
+    assert_allclose(results_qr.pvalues, results_pivot.pvalues[[0,2,3]])
+
+
+
