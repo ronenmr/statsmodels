@@ -3,6 +3,9 @@ import statsmodels.api as sm
 import matplotlib.pyplot as plt
 from statsmodels.sandbox.regression.predstd import wls_prediction_std
 
+from statsmodels.datasets import longley
+#from statsmodel.regression.tests.results.results_regression import Longley
+
 np.random.seed(9876789)
 
 # Test regression with no multicollinearity
@@ -18,13 +21,32 @@ y = np.dot(X, beta) + e
 model = sm.OLS(y, X)
 results = model.fit()
 print(results.summary())
-
+results.qr = model.fit(method="qr")
+print(results.qr.summary())
 results_pivot = model.fit(method="qr-pivot")
 print(results_pivot.summary())
 
 
 assert all((results.params - results_pivot.params) < 1e-8), 'Some of the params are not identical'
 assert all((results.pvalues - results_pivot.pvalues) < 1e-8), 'Some of the params are not identical'
+
+predict = results.predict(X)
+predict_pivot = results_pivot.predict(X)
+
+
+###################################
+data = longley.load(as_pandas=False)
+
+data.exog = sm.add_constant(data.exog, prepend=False)
+ols_m = sm.OLS(data.endog, data.exog)
+res = ols_m.fit()
+res_qr = ols_m.fit(method='qr')
+res_pivot = ols_m.fit(method='qr-pivot')
+
+print(res.summary())
+print(res_qr.summary())
+print(res_pivot.summary())
+print('end')
 
 # Test multiple regression with multicollinearity X3 is highly correlated with
 

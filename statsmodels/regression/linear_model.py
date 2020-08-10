@@ -352,7 +352,7 @@ class RegressionModel(base.LikelihoodModel):
                 Rr = R[rng, :][:, rng]
                 effects = np.dot(Qq.T, self.wendog)
                 beta = linalg.solve_triangular(Rr, effects)
-                beta = np.concatenate((beta, np.repeat(0.0, n_singular)))[sortP]
+                beta = np.concatenate((beta, np.repeat(np.nan, n_singular)))[sortP]
                 self.effects = np.concatenate((effects, np.repeat(np.NaN, n_singular)))
                 normalized_cov_params = np.linalg.inv(np.dot(Rr.T, Rr))
 
@@ -409,6 +409,8 @@ class RegressionModel(base.LikelihoodModel):
 
         if exog is None:
             exog = self.exog
+
+        params = np.nan_to_num(params, nan=0.0)
 
         return np.dot(exog, params)
 
