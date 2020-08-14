@@ -1440,10 +1440,11 @@ def test_ols_qr_pivot_with_multicollinearity():
     model = OLS(y, X)
 
     results_pivot = model.fit(method="qr-pivot")
+    select_columns = ~np.isnan(results_pivot.params)
 
-    results_qr = OLS(y, X[:,[0,2,3]]).fit(method='qr')
-    assert_allclose(results_qr.params, results_pivot.params[[0,2,3]])
-    assert_allclose(results_qr.pvalues, results_pivot.pvalues[[0,2,3]])
+    results_qr = OLS(y, X[:, select_columns]).fit(method='qr')
+    assert_allclose(results_qr.params, results_pivot.params[select_columns])
+    assert_allclose(results_qr.pvalues, results_pivot.pvalues[select_columns])
 
 
 
